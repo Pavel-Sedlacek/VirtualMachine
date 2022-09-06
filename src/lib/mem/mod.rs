@@ -7,11 +7,11 @@ pub type DoubleWord = u32;
 
 impl X for Word {
     fn significant_byte(&self) -> Byte {
-        todo!()
+        (self >> 8) as Byte
     }
 
     fn insignificant_byte(&self) -> Byte {
-        todo!()
+        *self as Byte
     }
 }
 

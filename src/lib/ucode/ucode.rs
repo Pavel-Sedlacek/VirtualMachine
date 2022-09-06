@@ -1,4 +1,4 @@
-use crate::mem::Byte;
+use crate::lib::mem::Byte;
 
 pub struct UCode {
 
@@ -16,9 +16,5 @@ impl UCode {
     pub const MEMORY_ALREADY_LOCKED: Byte = 0xd3;
     pub const MEMORY_ALREADY_UNLOCKED: Byte = 0xd4;
 
-
-
-    pub const TERMINATE: Byte = 0xfd;
-    pub const RETRY: Byte = 0xfe;
-    pub const CONTINUE: Byte = 0xff;
+    pub const HLT: Byte = 0xff;
 }

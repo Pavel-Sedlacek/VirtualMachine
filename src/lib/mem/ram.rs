@@ -1,7 +1,6 @@
-use std::io::Write;
-use crate::chip_util::combine_to_word;
-use crate::mem::{Byte, Word, X};
-use crate::ucode::ucode::UCode;
+use crate::lib::chip_util::combine_to_word;
+use crate::lib::mem::{Byte, Word, X};
+use crate::lib::ucode::ucode::UCode;
 
 pub struct RAM {
     size: usize,
@@ -13,7 +12,7 @@ impl RAM {
     pub fn new(size: usize) -> Self {
         RAM {
             size,
-            memory: vec![],
+            memory: vec![0x0; size],
             lock: false
         }
     }
