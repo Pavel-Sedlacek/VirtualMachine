@@ -1,5 +1,5 @@
 use crate::lib::chip_util::combine_to_word;
-use crate::lib::mem::{Byte, Word, X};
+use crate::lib::mem::{Byte, W, Word};
 use crate::lib::ucode::ucode::UCode;
 
 pub struct RAM {
