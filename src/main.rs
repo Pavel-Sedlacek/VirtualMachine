@@ -11,9 +11,6 @@ fn main() {
     // address range => 0x0000'0000 <-> 0x1FFF'FFFF
     let mut ram = RAM::new(536_870_912);
 
-    // ram.write_byte(0xffff_fff0, Assembly::CMA);
-    // ram.write_word(0xffff_fff1, );
-
     let mut cpu = CPU::new();
 
     let cpu_thread = thread::spawn(move || {

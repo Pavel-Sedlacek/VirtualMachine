@@ -1,11 +1,11 @@
-use crate::lib::chip_util::combine_to_word;
-use crate::lib::mem::{Byte, W, Word};
+use crate::lib::chip_util::{combine_to_double_word, combine_to_word};
+use crate::lib::mem::{Byte, DoubleWord, W, Word};
 use crate::lib::ucode::ucode::UCode;
 
 pub struct RAM {
     size: usize,
     memory: Vec<Byte>,
-    lock: bool
+    lock: bool,
 }
 
 impl RAM {
@@ -38,24 +38,14 @@ impl RAM {
     pub fn is_locked(&self) -> bool {
         self.lock
     }
+
     pub fn fetch_byte(&self, address: usize) -> Result<Byte, Byte> {
         if address < self.size { Ok(self.memory[address]) } else { Err(UCode::INVALID_MEMORY_READ) }
     }
-    pub fn fetch_word(&self, address: usize) -> Result<Word, Byte> {
-        if address + 1 < self.size {
-            Ok(combine_to_word(self.fetch_byte(address).unwrap(), self.fetch_byte(address + 1).unwrap()))
-        } else { Err(UCode::INVALID_MEMORY_READ) }
-    }
+
     pub fn write_byte(&mut self, address: usize, byte: Byte) -> Result<(), Byte> {
         if address < self.size {
             self.memory[address] = byte;
-            Ok(())
-        } else { Err(UCode::INVALID_MEMORY_WRITE) }
-    }
-    pub fn write_word(&mut self, address: usize, word: Word) -> Result<(), Byte> {
-        if address + 1 < self.size {
-            self.write_byte(address, word.significant_byte()).unwrap();
-            self.write_byte(address + 1, word.insignificant_byte()).unwrap();
             Ok(())
         } else { Err(UCode::INVALID_MEMORY_WRITE) }
     }

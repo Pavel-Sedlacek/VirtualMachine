@@ -6,6 +6,7 @@ impl Assembly {
 
     // do nothing instruction
     pub const HLT: u8 = 0x00;
+    pub const STK: u8 = 0x01;
 
     // load a
     pub const LDA: u8 = 0x40;
@@ -55,7 +56,7 @@ impl Assembly {
     pub const PLP: u8 = 0x79;
 
     // compare to a
-    pub const CMA: u8 = 0xa0;
+    pub const CMP: u8 = 0xa0;
     // compare to x
     pub const CMX: u8 = 0xa1;
     // compare to y
@@ -71,16 +72,8 @@ impl Assembly {
     pub const BEQ: u8 = 0xaa;
     // branch non zero flag
     pub const BNE: u8 = 0xab;
-
     // jump
     pub const JMP: u8 = 0xac;
-    // jump zero flag
-    pub const JME: u8 = 0xad;
-
-    // jump subroutine
-    pub const JSR: u8 = 0xae;
-    // return subroutine
-    pub const RTS: u8 = 0xaf;
 
     // dec a
     pub const DEC: u8 = 0xb0;
@@ -95,10 +88,4 @@ impl Assembly {
     pub const INX: u8 = 0xbb;
     // inc y
     pub const INY: u8 = 0xbc;
-
-
-    // write data to bus at address
-    pub const WBR: u8 = 0xd0;
-    // read data from bus
-    pub const RBR: u8 = 0xd1;
 }
