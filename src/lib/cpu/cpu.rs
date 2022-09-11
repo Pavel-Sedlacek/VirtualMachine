@@ -1,11 +1,13 @@
 use std::num::FpCategory::Zero;
 use std::process::exit;
 use std::ptr::addr_of;
+use std::sync::Mutex;
 use std::thread;
 
+use crate::lib::bus::Bus;
 use crate::lib::chip_util::{combine_to_double_word, combine_to_word};
 use crate::lib::mem::{B, Byte, D, DoubleWord, W, Word};
-use crate::lib::ucode::assembly::Assembly;
+use crate::lib::ucode::cpu_assembly::CPUAssembly;
 use crate::RAM;
 
 pub struct CPU {
@@ -134,8 +136,8 @@ impl CPU {
         self.program_counter += 1;
     }
 
-    pub fn launch(&mut self, ram: &mut RAM) {
-        let mut instruction: Byte = Assembly::HLT;
+    pub fn launch(&mut self, ram: &mut RAM, bus: &mut Mutex<Bus>) {
+        let mut instruction: Byte = CPUAssembly::HLT;
         let mut finished_instruction: bool = true;
 
         loop {
@@ -179,15 +181,15 @@ impl CPU {
 impl CPU {
     fn execute(&mut self, opcode: u8, ram: &mut RAM) -> Result<bool, Byte> {
         match opcode {
-            Assembly::HLT => { Ok(true) }
+            CPUAssembly::HLT => { Ok(true) }
 
             // TODO remove
-            Assembly::STK => {
+            CPUAssembly::STK => {
                 println!("{}", self.stack_trace());
                 Ok(true)
             }
 
-            Assembly::LDA => {
+            CPUAssembly::LDA => {
                 match self.instruction_step {
                     0 => {
                         let x = self.fetch_word(ram);
@@ -198,7 +200,7 @@ impl CPU {
                 }
                 Ok(self.instruction_step >= 1)
             }
-            Assembly::LDX => {
+            CPUAssembly::LDX => {
                 match self.instruction_step {
                     0 => {
                         let x = self.fetch_word(ram);
@@ -209,7 +211,7 @@ impl CPU {
                 }
                 Ok(self.instruction_step >= 1)
             }
-            Assembly::LDY => {
+            CPUAssembly::LDY => {
                 match self.instruction_step {
                     0 => {
                         let x = self.fetch_word(ram);
@@ -221,32 +223,32 @@ impl CPU {
                 Ok(self.instruction_step >= 1)
             }
 
-            Assembly::TAX => {
+            CPUAssembly::TAX => {
                 self.x_register = self.a_register;
                 Ok(true)
             }
-            Assembly::TAY => {
+            CPUAssembly::TAY => {
                 self.y_register = self.a_register;
                 Ok(true)
             }
-            Assembly::TXA => {
+            CPUAssembly::TXA => {
                 self.a_register = self.x_register;
                 Ok(true)
             }
-            Assembly::TXY => {
+            CPUAssembly::TXY => {
                 self.y_register = self.x_register;
                 Ok(true)
             }
-            Assembly::TYA => {
+            CPUAssembly::TYA => {
                 self.a_register = self.y_register;
                 Ok(true)
             }
-            Assembly::TYX => {
+            CPUAssembly::TYX => {
                 self.x_register = self.y_register;
                 Ok(true)
             }
 
-            Assembly::STA => {
+            CPUAssembly::STA => {
                 match self.instruction_step {
                     0 => {
                         let x = self.fetch_double_word(ram);
@@ -260,7 +262,7 @@ impl CPU {
                 }
                 Ok(self.instruction_step >= 1)
             }
-            Assembly::STX => {
+            CPUAssembly::STX => {
                 match self.instruction_step {
                     0 => {
                         let x = self.fetch_double_word(ram);
@@ -274,7 +276,7 @@ impl CPU {
                 }
                 Ok(self.instruction_step >= 1)
             }
-            Assembly::STY => {
+            CPUAssembly::STY => {
                 match self.instruction_step {
                     0 => {
                         let x = self.fetch_double_word(ram);
@@ -291,57 +293,57 @@ impl CPU {
 
             // TODO add load from memory ? storing is pointless otherwise
 
-            Assembly::PSA => {
+            CPUAssembly::PSA => {
                 let res = self.write_word(ram, self.stack_pointer as usize, self.a_register);
                 if res.is_err() { return Err(res.err().unwrap()) }
                 self.stack_pointer -= 2;
                 Ok(true)
             },
-            Assembly::PSX => {
+            CPUAssembly::PSX => {
                 let res = self.write_word(ram, self.stack_pointer as usize, self.x_register);
                 if res.is_err() { return Err(res.err().unwrap()) }
                 self.stack_pointer -= 2;
                 Ok(true)
             },
-            Assembly::PSY => {
+            CPUAssembly::PSY => {
                 let res = self.write_word(ram, self.stack_pointer as usize, self.y_register);
                 if res.is_err() { return Err(res.err().unwrap()) }
                 self.stack_pointer -= 2;
                 Ok(true)
             },
-            Assembly::PSP => {
+            CPUAssembly::PSP => {
                 let res = self.write_double_word(ram, self.stack_pointer as usize, self.program_counter);
                 if res.is_err() { return Err(res.err().unwrap()) }
                 self.stack_pointer -= 4;
                 Ok(true)
             },
 
-            Assembly::PLA => {
+            CPUAssembly::PLA => {
                 let res = self.read_word(ram, self.stack_pointer as usize);
                 if res.is_err() { return Err(res.err().unwrap()) } else { self.a_register = res.unwrap() }
                 self.stack_pointer += 2;
                 Ok(true)
             },
-            Assembly::PLX => {
+            CPUAssembly::PLX => {
                 let res = self.read_word(ram, self.stack_pointer as usize);
                 if res.is_err() { return Err(res.err().unwrap()) } else { self.x_register = res.unwrap() }
                 self.stack_pointer += 2;
                 Ok(true)
             },
-            Assembly::PLY => {
+            CPUAssembly::PLY => {
                 let res = self.read_word(ram, self.stack_pointer as usize);
                 if res.is_err() { return Err(res.err().unwrap()) } else { self.y_register = res.unwrap() }
                 self.stack_pointer += 2;
                 Ok(true)
             },
-            Assembly::PLP => {
+            CPUAssembly::PLP => {
                 let res = self.read_double_word(ram, self.stack_pointer as usize);
                 if res.is_err() { return Err(res.err().unwrap()) } else { self.program_counter = res.unwrap() }
                 self.stack_pointer += 4;
                 Ok(true)
             },
 
-            Assembly::CMP => {
+            CPUAssembly::CMP => {
                 match self.instruction_step {
                     0 => {
                         let x = self.fetch_word(ram);
@@ -353,7 +355,7 @@ impl CPU {
                 }
                 Ok(self.instruction_step >= 1)
             }
-            Assembly::CMX => {
+            CPUAssembly::CMX => {
                 match self.instruction_step {
                     0 => {
                         let x = self.fetch_word(ram);
@@ -365,7 +367,7 @@ impl CPU {
                 }
                 Ok(self.instruction_step >= 1)
             }
-            Assembly::CMY => {
+            CPUAssembly::CMY => {
                 match self.instruction_step {
                     0 => {
                         let x = self.fetch_word(ram);
@@ -377,20 +379,20 @@ impl CPU {
                 }
                 Ok(self.instruction_step >= 1)
             }
-            Assembly::CAX => {
+            CPUAssembly::CAX => {
                 self.flag_register = if self.x_register == self.a_register { self.flag_register.set_bit(CPU::ZERO) } else { self.flag_register.unset_bit(CPU::ZERO) };
                 Ok(true)
             }
-            Assembly::CAY => {
+            CPUAssembly::CAY => {
                 self.flag_register = if self.a_register == self.y_register { self.flag_register.set_bit(CPU::ZERO) } else { self.flag_register.unset_bit(CPU::ZERO) };
                 Ok(true)
             }
-            Assembly::CXY => {
+            CPUAssembly::CXY => {
                 self.flag_register = if self.x_register == self.y_register { self.flag_register.set_bit(CPU::ZERO) } else { self.flag_register.unset_bit(CPU::ZERO) };
                 Ok(true)
             }
 
-            Assembly::BEQ => {
+            CPUAssembly::BEQ => {
                 if self.flag_register.is_set_bit(CPU::ZERO) {
                     match self.instruction_step {
                         0 => {
@@ -403,7 +405,7 @@ impl CPU {
                     Ok(self.instruction_step >= 1)
                 } else { Ok(true) }
             }
-            Assembly::BNE => {
+            CPUAssembly::BNE => {
                 if !self.flag_register.is_set_bit(CPU::ZERO) {
                     match self.instruction_step {
                         0 => {
@@ -417,7 +419,7 @@ impl CPU {
                 } else { Ok(true) }
             }
 
-            Assembly::JMP => {
+            CPUAssembly::JMP => {
                 match self.instruction_step {
                     0 => {
                         let x = self.fetch_double_word(ram);
@@ -429,38 +431,38 @@ impl CPU {
                 Ok(self.instruction_step >= 1)
             }
 
-            Assembly::DEC => {
+            CPUAssembly::DEC => {
                 if self.a_register == Word::MIN { self.flag_register.set_bit(CPU::OVERFLOW); }
                 self.a_register -= 1;
                 if self.a_register < 0 { self.flag_register.set_bit(CPU::NEGATIVE); }
                 Ok(true)
             }
-            Assembly::DEX => {
+            CPUAssembly::DEX => {
                 if self.x_register == Word::MIN { self.flag_register.set_bit(CPU::OVERFLOW); }
                 self.x_register -= 1;
                 if self.x_register < 0 { self.flag_register.set_bit(CPU::NEGATIVE); }
                 Ok(true)
             }
-            Assembly::DEY => {
+            CPUAssembly::DEY => {
                 if self.y_register == Word::MIN { self.flag_register.set_bit(CPU::OVERFLOW); }
                 self.y_register -= 1;
                 if self.y_register < 0 { self.flag_register.set_bit(CPU::NEGATIVE); }
                 Ok(true)
             }
 
-            Assembly::INC => {
+            CPUAssembly::INC => {
                 if self.a_register == Word::MAX { self.flag_register.set_bit(CPU::OVERFLOW); }
                 self.a_register += 1;
                 if self.a_register < 0 { self.flag_register.set_bit(CPU::NEGATIVE); }
                 Ok(true)
             }
-            Assembly::INX => {
+            CPUAssembly::INX => {
                 if self.x_register == Word::MAX { self.flag_register.set_bit(CPU::OVERFLOW); }
                 self.x_register += 1;
                 if self.x_register < 0 { self.flag_register.set_bit(CPU::NEGATIVE); }
                 Ok(true)
             }
-            Assembly::INY => {
+            CPUAssembly::INY => {
                 if self.y_register == Word::MAX { self.flag_register.set_bit(CPU::OVERFLOW); }
                 self.y_register += 1;
                 if self.y_register < 0 { self.flag_register.set_bit(CPU::NEGATIVE); }

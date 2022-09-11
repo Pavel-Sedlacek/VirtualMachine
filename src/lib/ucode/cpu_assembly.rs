@@ -1,9 +1,6 @@
-pub struct Assembly {
+pub struct CPUAssembly {}
 
-}
-
-impl Assembly {
-
+impl CPUAssembly {
     // do nothing instruction
     pub const HLT: u8 = 0x00;
     pub const STK: u8 = 0x01;
