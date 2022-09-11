@@ -1,14 +1,13 @@
 use std::num::FpCategory::Zero;
 use std::process::exit;
 use std::ptr::addr_of;
-use std::sync::Mutex;
+use std::sync::{Arc, Mutex};
 use std::thread;
 
-use crate::lib::bus::Bus;
+use crate::{Bus, RAM};
 use crate::lib::chip_util::{combine_to_double_word, combine_to_word};
 use crate::lib::mem::{B, Byte, D, DoubleWord, W, Word};
 use crate::lib::ucode::cpu_assembly::CPUAssembly;
-use crate::RAM;
 
 pub struct CPU {
     a_register: Word,
@@ -73,9 +72,9 @@ impl CPU {
     }
     fn fetch_double_word(&mut self, ram: &mut RAM) -> Result<DoubleWord, Byte> {
         let sig = self.fetch_word(ram);
-        if sig.is_err() { return Err(sig.err().unwrap()) }
+        if sig.is_err() { return Err(sig.err().unwrap()); }
         let insig = self.fetch_word(ram);
-        if insig.is_err() { return Err(insig.err().unwrap()) }
+        if insig.is_err() { return Err(insig.err().unwrap()); }
         Ok(combine_to_double_word(sig.unwrap(), insig.unwrap()))
     }
 
@@ -96,9 +95,9 @@ impl CPU {
     }
     fn read_double_word(&mut self, ram: &mut RAM, address: usize) -> Result<DoubleWord, Byte> {
         let sig = self.read_word(ram, address);
-        if sig.is_err() { return Err(sig.err().unwrap()) }
+        if sig.is_err() { return Err(sig.err().unwrap()); }
         let insig = self.read_word(ram, address + 2);
-        if insig.is_err() { return Err(insig.err().unwrap()) }
+        if insig.is_err() { return Err(insig.err().unwrap()); }
         Ok(combine_to_double_word(sig.unwrap(), insig.unwrap()))
     }
 
@@ -107,7 +106,7 @@ impl CPU {
         ram.lock().unwrap();
         let res = ram.write_byte(address, byte);
         ram.unlock().unwrap();
-        if res.is_err() { return Err(res.err().unwrap()) }
+        if res.is_err() { return Err(res.err().unwrap()); }
         Ok(())
     }
     fn write_word(&mut self, ram: &mut RAM, address: usize, word: Word) -> Result<(), Byte> {
@@ -116,8 +115,8 @@ impl CPU {
         let res = self.write_byte(ram, address, word.significant_byte());
         let res2 = self.write_byte(ram, address + 1, word.significant_byte());
         ram.unlock().unwrap();
-        if res.is_err() { return Err(res.err().unwrap()) }
-        if res2.is_err() { return Err(res2.err().unwrap()) }
+        if res.is_err() { return Err(res.err().unwrap()); }
+        if res2.is_err() { return Err(res2.err().unwrap()); }
         Ok(())
     }
     fn write_double_word(&mut self, ram: &mut RAM, address: usize, dword: DoubleWord) -> Result<(), Byte> {
@@ -126,8 +125,8 @@ impl CPU {
         let res = self.write_word(ram, address, dword.significant_word());
         let res2 = self.write_word(ram, address + 1, dword.insignificant_word());
         ram.unlock().unwrap();
-        if res.is_err() { return Err(res.err().unwrap()) }
-        if res2.is_err() { return Err(res2.err().unwrap()) }
+        if res.is_err() { return Err(res.err().unwrap()); }
+        if res2.is_err() { return Err(res2.err().unwrap()); }
         Ok(())
     }
 
@@ -136,23 +135,24 @@ impl CPU {
         self.program_counter += 1;
     }
 
-    pub fn launch(&mut self, ram: &mut RAM, bus: &mut Mutex<Bus>) {
+    pub fn launch(&mut self, ram: &mut RAM, bus: &Arc<Mutex<Bus>>) {
         let mut instruction: Byte = CPUAssembly::HLT;
         let mut finished_instruction: bool = true;
 
         loop {
-            if finished_instruction {
-                let x = self.fetch_byte(ram);
-                if x.is_ok() {
-                    instruction = x.unwrap();
-                    self.on_success_byte_fetch()
-                } else { self.raise_exception(x.err().unwrap()) }
-            }
-            let res = self.execute(instruction, ram);
-            self.instruction_step += 1;
-            if res.is_ok() { finished_instruction = res.unwrap() } else { self.raise_exception(res.err().unwrap()) }
-            if finished_instruction { self.instruction_step = 0 }
-            println!("{}", self.stack_trace())
+            // if finished_instruction {
+            //     let x = self.fetch_byte(ram);
+            //     if x.is_ok() {
+            //         instruction = x.unwrap();
+            //         self.on_success_byte_fetch()
+            //     } else { self.raise_exception(x.err().unwrap()) }
+            // }
+            // let res = self.execute(instruction, ram);
+            // self.instruction_step += 1;
+            // if res.is_ok() { finished_instruction = res.unwrap() } else { self.raise_exception(res.err().unwrap()) }
+            // if finished_instruction { self.instruction_step = 0 }
+            println!("{}", self.stack_trace());
+            println!("{}", bus.lock().unwrap().devices());
         }
     }
 
@@ -295,53 +295,53 @@ impl CPU {
 
             CPUAssembly::PSA => {
                 let res = self.write_word(ram, self.stack_pointer as usize, self.a_register);
-                if res.is_err() { return Err(res.err().unwrap()) }
+                if res.is_err() { return Err(res.err().unwrap()); }
                 self.stack_pointer -= 2;
                 Ok(true)
-            },
+            }
             CPUAssembly::PSX => {
                 let res = self.write_word(ram, self.stack_pointer as usize, self.x_register);
-                if res.is_err() { return Err(res.err().unwrap()) }
+                if res.is_err() { return Err(res.err().unwrap()); }
                 self.stack_pointer -= 2;
                 Ok(true)
-            },
+            }
             CPUAssembly::PSY => {
                 let res = self.write_word(ram, self.stack_pointer as usize, self.y_register);
-                if res.is_err() { return Err(res.err().unwrap()) }
+                if res.is_err() { return Err(res.err().unwrap()); }
                 self.stack_pointer -= 2;
                 Ok(true)
-            },
+            }
             CPUAssembly::PSP => {
                 let res = self.write_double_word(ram, self.stack_pointer as usize, self.program_counter);
-                if res.is_err() { return Err(res.err().unwrap()) }
+                if res.is_err() { return Err(res.err().unwrap()); }
                 self.stack_pointer -= 4;
                 Ok(true)
-            },
+            }
 
             CPUAssembly::PLA => {
                 let res = self.read_word(ram, self.stack_pointer as usize);
-                if res.is_err() { return Err(res.err().unwrap()) } else { self.a_register = res.unwrap() }
+                if res.is_err() { return Err(res.err().unwrap()); } else { self.a_register = res.unwrap() }
                 self.stack_pointer += 2;
                 Ok(true)
-            },
+            }
             CPUAssembly::PLX => {
                 let res = self.read_word(ram, self.stack_pointer as usize);
-                if res.is_err() { return Err(res.err().unwrap()) } else { self.x_register = res.unwrap() }
+                if res.is_err() { return Err(res.err().unwrap()); } else { self.x_register = res.unwrap() }
                 self.stack_pointer += 2;
                 Ok(true)
-            },
+            }
             CPUAssembly::PLY => {
                 let res = self.read_word(ram, self.stack_pointer as usize);
-                if res.is_err() { return Err(res.err().unwrap()) } else { self.y_register = res.unwrap() }
+                if res.is_err() { return Err(res.err().unwrap()); } else { self.y_register = res.unwrap() }
                 self.stack_pointer += 2;
                 Ok(true)
-            },
+            }
             CPUAssembly::PLP => {
                 let res = self.read_double_word(ram, self.stack_pointer as usize);
-                if res.is_err() { return Err(res.err().unwrap()) } else { self.program_counter = res.unwrap() }
+                if res.is_err() { return Err(res.err().unwrap()); } else { self.program_counter = res.unwrap() }
                 self.stack_pointer += 4;
                 Ok(true)
-            },
+            }
 
             CPUAssembly::CMP => {
                 match self.instruction_step {
