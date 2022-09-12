@@ -6,21 +6,14 @@ impl GPUAssembly {
     // print stack trace
     pub const STK: u8 = 0x01;
 
-
-    pub const VAO: u8 = 0x01;
+    // bind vertex buffer
+    pub const BVB: u8 = 0xa0;
+    // unbind vertex buffer
+    pub const UVB: u8 = 0xa1;
 
     // buffer vertex data
-    // 0bXXXXXXXX_YYYYYYYY_CCCCCCCC_AABBCCDD
-    // xx = x position u8
-    // yy = y position u8
-    // cc = color u8 [rrggbbaa]
-    // aa = texture coordinate {00; 01; 10; 11}
-    // bb = z-index 0b00 - 0b11
-    pub const VRX: u8 = 0x20;
+    pub const VRX: u8 = 0xab;
 
-    // connect vertices to face
-    pub const FCE: u8 = 0x21;
-
-    // bind face texture
-
+    // issue draw
+    pub const DRW: u8 = 0xaf;
 }

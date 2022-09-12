@@ -14,7 +14,7 @@ impl UCode {
     // gpu uCode
     pub const MONITOR_NOT_FOUND: Byte = 0xb0;
     pub const PIXEL_OUT_OF_BOUNDS: Byte = 0xb1;
-    
+
     // memory uCode
     pub const GENERIC_MEMORY_FAILURE: Byte = 0xd0;
     pub const INVALID_MEMORY_READ: Byte = 0xd1;
@@ -25,6 +25,8 @@ impl UCode {
     // Buffer uCode
     pub const INVALID_BUFFER_ACCESS: Byte = 0xe0;
 
+    //
+    pub const UNKNOWN_EXCEPTION: Byte = 0xfe;
     // generic uCode
     pub const HLT: Byte = 0xff;
 }

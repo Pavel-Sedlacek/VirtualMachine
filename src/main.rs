@@ -19,7 +19,7 @@ fn main() {
     let mut b1 = Arc::clone(&bus);
     let mut b2 = Arc::clone(&bus);
 
-    let mut m1 = Monitor::new();
+    let mut m1 = Monitor::new(640, 480);
     let mut cpu = CPU::new();
 
     let mut gpu = GPU::new("vGPU - GACUM (Graphical Accelerated Compute Unit Magic)", "vgpu-acum-0000-0000");
