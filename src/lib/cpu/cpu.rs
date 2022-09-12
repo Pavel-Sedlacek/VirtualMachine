@@ -113,9 +113,9 @@ impl CPU {
         while ram.is_locked() {};
         ram.lock().unwrap();
         let res = self.write_byte(ram, address, word.significant_byte());
+        if res.is_err() { return Err(res.err().unwrap()); }
         let res2 = self.write_byte(ram, address + 1, word.significant_byte());
         ram.unlock().unwrap();
-        if res.is_err() { return Err(res.err().unwrap()); }
         if res2.is_err() { return Err(res2.err().unwrap()); }
         Ok(())
     }
@@ -130,7 +130,6 @@ impl CPU {
         Ok(())
     }
 
-
     fn on_success_byte_fetch(&mut self) {
         self.program_counter += 1;
     }
@@ -140,19 +139,17 @@ impl CPU {
         let mut finished_instruction: bool = true;
 
         loop {
-            // if finished_instruction {
-            //     let x = self.fetch_byte(ram);
-            //     if x.is_ok() {
-            //         instruction = x.unwrap();
-            //         self.on_success_byte_fetch()
-            //     } else { self.raise_exception(x.err().unwrap()) }
-            // }
-            // let res = self.execute(instruction, ram);
-            // self.instruction_step += 1;
-            // if res.is_ok() { finished_instruction = res.unwrap() } else { self.raise_exception(res.err().unwrap()) }
-            // if finished_instruction { self.instruction_step = 0 }
-            println!("{}", self.stack_trace());
-            println!("{}", bus.lock().unwrap().devices());
+            if finished_instruction {
+                let x = self.fetch_byte(ram);
+                if x.is_ok() {
+                    instruction = x.unwrap();
+                    self.on_success_byte_fetch()
+                } else { self.raise_exception(x.err().unwrap()) }
+            }
+            let res = self.execute(instruction, ram);
+            self.instruction_step += 1;
+            if res.is_ok() { finished_instruction = res.unwrap() } else { self.raise_exception(res.err().unwrap()) }
+            if finished_instruction { self.instruction_step = 0 }
         }
     }
 
@@ -179,7 +176,7 @@ impl CPU {
 }
 
 impl CPU {
-    fn execute(&mut self, opcode: u8, ram: &mut RAM) -> Result<bool, Byte> {
+    fn execute(&mut self, opcode: Byte, ram: &mut RAM) -> Result<bool, Byte> {
         match opcode {
             CPUAssembly::HLT => { Ok(true) }
 

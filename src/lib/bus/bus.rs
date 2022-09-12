@@ -1,31 +1,31 @@
 use std::borrow::Borrow;
-use std::collections::HashMap;
-use std::iter::Map;
-use std::ops::Deref;
-use std::path::Iter;
+use std::collections::{BTreeMap, HashMap};
 
-use crate::{CPUAssembly, RAM};
 use crate::lib::bus::bus_device::BusDevice;
 use crate::lib::mem::Byte;
-use crate::lib::ucode::gpu_assembly::GPUAssembly;
 
-pub struct Bus<'a> {
-    buffer: HashMap<Byte, Vec<Byte>>,
-    devices: HashMap<Byte, Box<&'a dyn BusDevice>>,
+struct BusDeviceInfo {
+    uuid: String,
+    name: String
+}
+
+pub struct Bus {
+    buffer: BTreeMap<Byte, Vec<Byte>>,
+    devices: BTreeMap<Byte, BusDeviceInfo>,
     pointer: Byte,
 }
 
-impl<'a> Bus<'a> {
+impl Bus {
     pub fn new() -> Self {
         Bus {
-            buffer: HashMap::new(),
-            devices: HashMap::new(),
+            buffer: BTreeMap::new(),
+            devices: BTreeMap::new(),
             pointer: 0x0,
         }
     }
 }
 
-impl<'a> Bus<'a> {
+impl Bus {
     pub fn write(&mut self, address: Byte, byte: Byte) {
         let mut x = self.buffer.get_mut(address.borrow());
         if x.is_none() { return; }
@@ -40,17 +40,17 @@ impl<'a> Bus<'a> {
         return a;
     }
 
-    pub fn register(&mut self, device: Box<&'a dyn BusDevice>) -> Byte {
+    pub fn register(&mut self, device: Box<&dyn BusDevice>) -> Byte {
         self.buffer.insert(self.pointer, vec![]);
-        self.devices.insert(self.pointer, device);
+        self.devices.insert(self.pointer, BusDeviceInfo {uuid: device.uuid(), name: device.uuid()});
         self.pointer += 1;
         self.pointer
     }
 
     pub fn devices(&self) -> String {
-        let mut x = "";
-        for i in self.devices {
-            x.to_owned().push_str(format!("{}: {} [{}]", i.0, i.1.uuid(), i.1.name()).as_str());
+        let mut x = "".to_string();
+        for i in self.devices.iter() {
+            x += format!("{:#04X}: {} [{}]\n", i.0, i.1.uuid, i.1.name).as_str();
         }
         x.to_string()
     }
