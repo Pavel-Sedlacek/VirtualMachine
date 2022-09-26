@@ -10,7 +10,7 @@ use queues::{IsQueue, Queue};
 
 use crate::lib::bus::bus::Bus;
 use crate::lib::bus::bus_device::BusDevice;
-use crate::lib::chip_util::{combine_to_double_word, combine_to_word};
+use crate::lib::chip_util::{BlockingLock, combine_to_double_word, combine_to_word, map};
 use crate::lib::gpu::color::Color;
 use crate::lib::gpu::monitor::Monitor;
 use crate::lib::gpu::vector::Vector;
@@ -74,19 +74,22 @@ impl GPU {
 }
 
 impl GPU {
-    pub fn launch(&mut self, bus: &Arc<Mutex<Bus>>, displays: &[&mut Monitor]) {
-        self.address = bus.lock().unwrap().register(Box::new(self));
+    pub fn launch(&mut self, bus: &Arc<Mutex<Bus>>, displays: &mut [&mut Arc<Mutex<Monitor>>; 1]) {
+        self.address = bus.b_lock().register(Box::new(self));
 
-        self.display_buffer = vec![vec![]; displays.len()];
         for d in displays.iter() {
-            self.display_buffer.push(vec![vec![0x0; d.width() as usize]; d.height() as usize])
+            let w = d.b_lock().width() as usize;
+            let h = d.b_lock().height() as usize;
+            let v = vec![vec![0x0; w]; h];
+            self.display_buffer.push(v);
         }
 
         let mut instruction: Byte = GPUAssembly::HLT;
         let mut finished_instruction: bool = true;
 
         loop {
-            self.queue_to_buffer(bus.lock().unwrap().poll(self.address));
+            let x = bus.b_lock().poll(self.address);
+            self.queue_to_buffer(x);
 
             let x = self.fetch_instruction_byte();
             if x.is_ok() { instruction = x.unwrap(); } else { self.raise_exception(x.err().unwrap()) }
@@ -144,13 +147,13 @@ impl GPU {
         }
     }
 
-    fn coincide(&self, data: &Vec<Vector>, x: u16, y: u16) -> Option<Color> {
-        None
+    fn coincide(&self, data: &Vec<Vector>, x: u8, y: u8) -> Option<Color> {
+        Some(Color::white())
     }
 }
 
 impl GPU {
-    fn execute(&mut self, opcode: Byte, displays: &[&mut Monitor]) -> Result<bool, Byte> {
+    fn execute(&mut self, opcode: Byte, displays: &mut [&mut Arc<Mutex<Monitor>>; 1]) -> Result<bool, Byte> {
         match opcode {
             GPUAssembly::HLT => { Ok(true) }
             GPUAssembly::STK => {
@@ -202,22 +205,27 @@ impl GPU {
                 Ok(true)
             }
             GPUAssembly::DRW => {
-                let mut to_write: HashMap<Byte, Vec<(usize, usize, Word)>> = HashMap::new();
+                let mut to_write: HashMap<Byte, Vec<(usize, usize, Color)>> = HashMap::new();
                 for i in self.vertex_buffer.iter() {
                     let monitor = i.1.first().unwrap().monitor;
-                    let mut m = &displays[monitor as usize];
-                    for x in 0..m.width().to_owned() {
-                        for y in 0..m.height().to_owned() {
-                            let coincide = self.coincide(i.1, x, y);
+                    let mut m = &mut displays[monitor as usize];
+                    for x in 0..m.b_lock().width().to_owned() {
+                        for y in 0..m.b_lock().height().to_owned() {
+                            println!("jej");
+                            let coincide = self.coincide(i.1, map(x, 0..m.b_lock().width(), 0..255), map(y, 0..m.b_lock().height(), 0..255));
                             if coincide.is_none() { continue; }
 
+                            let c = coincide.unwrap();
                             to_write.insert(monitor, vec![]);
-                            to_write.get_mut(&monitor).unwrap().push((x as usize, y as usize, coincide.unwrap().as_word()));
-                            // cant borrow self as mutable as I am iterating it (having a reference)
-                            // let w = self.write_word(monitor, x as usize, y as usize, coincide.unwrap().as_word());
-                            // if w.is_err() { return Err(w.err().unwrap()); }
-                            m.deref_mut().write(x, y, coincide.unwrap().as_word());
+                            to_write.get_mut(&monitor).unwrap().push((x as usize, y as usize, c.clone()));
+                            m.b_lock().write(x, y, c.clone());
                         }
+                    }
+                }
+                for i in to_write {
+                    for j in i.1 {
+                        let w = self.write_word(i.0, j.0, j.1, j.2.as_word());
+                        if w.is_err() { return Err(w.err().unwrap()); }
                     }
                 }
                 Ok(true)

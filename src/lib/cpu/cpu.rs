@@ -5,9 +5,10 @@ use std::sync::{Arc, Mutex};
 use std::thread;
 
 use crate::{Bus, RAM};
-use crate::lib::chip_util::{combine_to_double_word, combine_to_word};
+use crate::lib::chip_util::{BlockingLock, combine_to_double_word, combine_to_word};
 use crate::lib::mem::{B, Byte, D, DoubleWord, W, Word};
 use crate::lib::ucode::cpu_assembly::CPUAssembly;
+use crate::lib::ucode::gpu_assembly::GPUAssembly;
 
 pub struct CPU {
     a_register: Word,
@@ -110,21 +111,15 @@ impl CPU {
         Ok(())
     }
     fn write_word(&mut self, ram: &mut RAM, address: usize, word: Word) -> Result<(), Byte> {
-        while ram.is_locked() {};
-        ram.lock().unwrap();
         let res = self.write_byte(ram, address, word.significant_byte());
         if res.is_err() { return Err(res.err().unwrap()); }
         let res2 = self.write_byte(ram, address + 1, word.significant_byte());
-        ram.unlock().unwrap();
         if res2.is_err() { return Err(res2.err().unwrap()); }
         Ok(())
     }
     fn write_double_word(&mut self, ram: &mut RAM, address: usize, dword: DoubleWord) -> Result<(), Byte> {
-        while ram.is_locked() {};
-        ram.lock().unwrap();
         let res = self.write_word(ram, address, dword.significant_word());
         let res2 = self.write_word(ram, address + 1, dword.insignificant_word());
-        ram.unlock().unwrap();
         if res.is_err() { return Err(res.err().unwrap()); }
         if res2.is_err() { return Err(res2.err().unwrap()); }
         Ok(())
@@ -137,6 +132,33 @@ impl CPU {
     pub fn launch(&mut self, ram: &mut RAM, bus: &Arc<Mutex<Bus>>) {
         let mut instruction: Byte = CPUAssembly::HLT;
         let mut finished_instruction: bool = true;
+
+        println!("{}", bus.b_lock().devices());
+
+        bus.b_lock().write(0x0, GPUAssembly::BVB);
+        bus.b_lock().write(0x0, 0x0);
+        bus.b_lock().write(0x0, 0x0);
+        bus.b_lock().write(0x0, GPUAssembly::VRX);
+        // x
+        bus.b_lock().write(0x0, 0b0000_0000);
+        bus.b_lock().write(0x0, 0b0000_0000);
+        // y
+        bus.b_lock().write(0x0, 0b0000_0000);
+        bus.b_lock().write(0x0, 0b0000_0000);
+        // c
+        bus.b_lock().write(0x0, 0b0000_0000);
+        bus.b_lock().write(0x0, 0b0000_0000);
+        // ax
+        bus.b_lock().write(0x0, 0b0000_0000);
+        bus.b_lock().write(0x0, 0b0000_0000);
+        // ay
+        bus.b_lock().write(0x0, 0b0000_00000);
+        bus.b_lock().write(0x0, 0b0000_0000);
+        // z index
+        bus.b_lock().write(0x0, 0b0000_0000);
+
+        bus.b_lock().write(0x0, GPUAssembly::UVB);
+        bus.b_lock().write(0x0, GPUAssembly::DRW);
 
         loop {
             if finished_instruction {
